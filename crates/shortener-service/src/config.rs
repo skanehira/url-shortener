@@ -46,7 +46,6 @@ pub struct Config {
 
 impl Config {
     /// Returns the database configuration.
-    #[must_use]
     pub fn database_config(&self) -> DatabaseConfig {
         DatabaseConfig {
             url: self.database_url.clone(),
@@ -55,7 +54,6 @@ impl Config {
     }
 
     /// Returns the `RabbitMQ` configuration.
-    #[must_use]
     pub fn rabbitmq_config(&self) -> RabbitMQConfig {
         RabbitMQConfig {
             url: self.rabbitmq_url.clone(),
@@ -66,7 +64,6 @@ impl Config {
     }
 
     /// Returns the observability configuration.
-    #[must_use]
     pub fn observability_config(&self) -> ObservabilityConfig {
         ObservabilityConfig {
             otlp_endpoint: self.otel_exporter_endpoint.clone(),
@@ -74,7 +71,6 @@ impl Config {
     }
 
     /// Returns the server address.
-    #[must_use]
     pub fn server_addr(&self) -> String {
         format!("{}:{}", self.server_host, self.server_port)
     }
