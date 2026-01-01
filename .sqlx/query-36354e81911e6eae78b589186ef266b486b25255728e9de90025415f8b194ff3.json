@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE urls\n            SET is_active = false, updated_at = NOW()\n            WHERE code = $1 AND is_active = true\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "36354e81911e6eae78b589186ef266b486b25255728e9de90025415f8b194ff3"
+}

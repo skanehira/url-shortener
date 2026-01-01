@@ -51,15 +51,16 @@ impl UrlRepository {
     pub async fn create(&self, original_url: &str) -> Result<Url, AppError> {
         let code = Self::generate_code();
 
-        let url = sqlx::query_as::<_, Url>(
-            r"
+        let url = sqlx::query_as!(
+            Url,
+            r#"
             INSERT INTO urls (code, original_url)
             VALUES ($1, $2)
             RETURNING id, code, original_url, created_at, updated_at, expires_at, is_active
-            ",
+            "#,
+            code,
+            original_url
         )
-        .bind(&code)
-        .bind(original_url)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
@@ -69,14 +70,15 @@ impl UrlRepository {
 
     #[instrument(skip(self))]
     pub async fn find_by_code(&self, code: &str) -> Result<Option<Url>, AppError> {
-        let url = sqlx::query_as::<_, Url>(
-            r"
+        let url = sqlx::query_as!(
+            Url,
+            r#"
             SELECT id, code, original_url, created_at, updated_at, expires_at, is_active
             FROM urls
             WHERE code = $1 AND is_active = true
-            ",
+            "#,
+            code
         )
-        .bind(code)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
@@ -86,17 +88,18 @@ impl UrlRepository {
 
     #[instrument(skip(self))]
     pub async fn list(&self, limit: i64, offset: i64) -> Result<Vec<Url>, AppError> {
-        let urls = sqlx::query_as::<_, Url>(
-            r"
+        let urls = sqlx::query_as!(
+            Url,
+            r#"
             SELECT id, code, original_url, created_at, updated_at, expires_at, is_active
             FROM urls
             WHERE is_active = true
             ORDER BY created_at DESC
             LIMIT $1 OFFSET $2
-            ",
+            "#,
+            limit,
+            offset
         )
-        .bind(limit)
-        .bind(offset)
         .fetch_all(&self.pool)
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
@@ -106,16 +109,17 @@ impl UrlRepository {
 
     #[instrument(skip(self))]
     pub async fn update(&self, code: &str, original_url: &str) -> Result<Url, AppError> {
-        let url = sqlx::query_as::<_, Url>(
-            r"
+        let url = sqlx::query_as!(
+            Url,
+            r#"
             UPDATE urls
             SET original_url = $2, updated_at = NOW()
             WHERE code = $1 AND is_active = true
             RETURNING id, code, original_url, created_at, updated_at, expires_at, is_active
-            ",
+            "#,
+            code,
+            original_url
         )
-        .bind(code)
-        .bind(original_url)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| AppError::Database(e.to_string()))?
@@ -126,14 +130,14 @@ impl UrlRepository {
 
     #[instrument(skip(self))]
     pub async fn delete(&self, code: &str) -> Result<(), AppError> {
-        let result = sqlx::query(
-            r"
+        let result = sqlx::query!(
+            r#"
             UPDATE urls
             SET is_active = false, updated_at = NOW()
             WHERE code = $1 AND is_active = true
-            ",
+            "#,
+            code
         )
-        .bind(code)
         .execute(&self.pool)
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;

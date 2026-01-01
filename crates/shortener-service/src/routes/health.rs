@@ -26,7 +26,7 @@ pub async fn health() -> Json<HealthResponse> {
 #[instrument(skip(state))]
 pub async fn ready(State(state): State<AppState>) -> (StatusCode, Json<ReadyResponse>) {
     // Check database connection
-    let db_ok = sqlx::query("SELECT 1")
+    let db_ok = sqlx::query!(r#"SELECT 1 as "one!""#)
         .fetch_one(state.url_repository.pool())
         .await
         .is_ok();
