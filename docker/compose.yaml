@@ -1,0 +1,151 @@
+name: url-shortener
+
+services:
+  # ============================================================================
+  # Middleware (default profile)
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: url-shortener-postgres
+    environment:
+      POSTGRES_USER: urlshortener
+      POSTGRES_PASSWORD: localdevpassword
+      POSTGRES_DB: urlshortener
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U urlshortener"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - url-shortener-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: url-shortener-redis
+    command: redis-server --appendonly yes --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - url-shortener-network
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: url-shortener-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: urlshortener
+      RABBITMQ_DEFAULT_PASS: localdevpassword
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - url-shortener-network
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: url-shortener-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - jaeger
+    networks:
+      - url-shortener-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: url-shortener-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+      - "14317:4317"
+      - "14318:4318"
+    networks:
+      - url-shortener-network
+
+  # ============================================================================
+  # Application Services (app profile)
+  # ============================================================================
+  shortener-service:
+    profiles: [app]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        SERVICE_NAME: shortener-service
+    container_name: url-shortener-shortener
+    environment:
+      RUST_LOG: info,shortener_service=debug
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8080"
+      DATABASE_URL: postgres://urlshortener:localdevpassword@postgres:5432/urlshortener
+      RABBITMQ_URL: amqp://urlshortener:localdevpassword@rabbitmq:5672/%2f
+      OTEL_EXPORTER_ENDPOINT: http://otel-collector:4317
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    networks:
+      - url-shortener-network
+
+  analytics-service:
+    profiles: [app]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        SERVICE_NAME: analytics-service
+    container_name: url-shortener-analytics
+    environment:
+      RUST_LOG: info,analytics_service=debug
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8081"
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://urlshortener:localdevpassword@rabbitmq:5672/%2f
+      OTEL_EXPORTER_ENDPOINT: http://otel-collector:4317
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    networks:
+      - url-shortener-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  url-shortener-network:
+    driver: bridge

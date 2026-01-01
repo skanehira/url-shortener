@@ -1,0 +1,55 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: url-shortener
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: dev
+            namespace: url-shortener-dev
+            autoSync: true
+          - env: staging
+            namespace: url-shortener-staging
+            autoSync: true
+          - env: prod
+            namespace: url-shortener-prod
+            autoSync: false
+
+  template:
+    metadata:
+      name: "url-shortener-{{env}}"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/name: url-shortener
+        environment: "{{env}}"
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+
+      source:
+        repoURL: https://github.com/skanehira/url-shortener.git
+        targetRevision: main
+        path: "k8s/overlays/{{env}}"
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{namespace}}"
+
+      syncPolicy:
+        automated:
+          prune: "{{autoSync}}"
+          selfHeal: "{{autoSync}}"
+          allowEmpty: false
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
