@@ -172,3 +172,6 @@ jobs:
             SERVICE_NAME=${{ matrix.service }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Supply chain security attestations
+          provenance: mode=max
+          sbom: true
