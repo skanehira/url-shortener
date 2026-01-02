@@ -1,0 +1,11 @@
+template:
+  spec:
+    containers:
+      - name: runner
+        image: ghcr.io/skanehira/arc-runner:latest
+        imagePullPolicy: Always
+        command: ["/home/runner/run.sh"]
+        securityContext:
+          capabilities:
+            add:
+              - SYS_RESOURCE

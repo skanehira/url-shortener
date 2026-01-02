@@ -1,0 +1,63 @@
+#cloud-config
+apt:
+  preserve_sources_list: true
+write_files:
+  - path: /usr/local/bin/init-cluster.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      # Flannel version - update as needed
+      FLANNEL_VERSION="0.26.1"
+
+      LOG_FILE="/var/log/k8s-cluster-init.log"
+      exec > >(tee -a "$LOG_FILE") 2>&1
+
+      # Source common logging functions
+      source /usr/local/bin/k8s-log.sh
+
+      log_info "Initializing Kubernetes cluster..."
+
+      # Check if cluster is already initialized
+      if [[ -f /etc/kubernetes/admin.conf ]]; then
+        log_warn "Cluster appears to be already initialized, skipping kubeadm init..."
+      else
+        log_info "Running kubeadm init..."
+        if ! kubeadm init --pod-network-cidr=10.244.0.0/16; then
+          log_error "Failed to initialize cluster"
+          exit 1
+        fi
+      fi
+
+      log_info "Setting up kubeconfig for root user..."
+      mkdir -p /root/.kube
+      cp -f /etc/kubernetes/admin.conf /root/.kube/config
+      chown root:root /root/.kube/config
+
+      log_info "Setting up kubeconfig for ubuntu user..."
+      mkdir -p /home/ubuntu/.kube
+      cp -f /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
+      chown ubuntu:ubuntu /home/ubuntu/.kube/config
+
+      log_info "Installing Flannel CNI ${FLANNEL_VERSION}..."
+      if ! kubectl apply -f "https://github.com/flannel-io/flannel/releases/download/v${FLANNEL_VERSION}/kube-flannel.yml"; then
+        log_error "Failed to install Flannel CNI"
+        exit 1
+      fi
+
+      log_info "Waiting for nodes to be ready..."
+      kubectl wait --for=condition=Ready nodes --all --timeout=300s || true
+
+      log_info "Cluster initialization completed successfully!"
+      log_info ""
+      log_info "To join worker nodes, run the following command on each worker:"
+      log_info ""
+      kubeadm token create --print-join-command
+      log_info ""
+      log_info "Log file: $LOG_FILE"
+runcmd:
+  - [ /usr/local/bin/k8s-common.sh ]
+  - [ apt-get, install, -y, kubectl ]
+  - [ apt-mark, hold, kubectl ]

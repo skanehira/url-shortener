@@ -1,0 +1,5 @@
+#cloud-config
+apt:
+  preserve_sources_list: true
+runcmd:
+  - [ /usr/local/bin/k8s-common.sh ]

@@ -7,9 +7,6 @@ spec:
   generators:
     - list:
         elements:
-          - env: dev
-            namespace: url-shortener-dev
-            autoSync: true
           - env: staging
             namespace: url-shortener-staging
             autoSync: true
