@@ -12,11 +12,11 @@ commonLabels:
   environment: staging
 
 patches:
-  # Application Deployments
+  # Application Deployments - single replica for staging
   - patch: |-
       - op: replace
         path: /spec/replicas
-        value: 2
+        value: 1
     target:
       kind: Deployment
 

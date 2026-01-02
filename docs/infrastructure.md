@@ -289,11 +289,11 @@ kubectl get pdb -n url-shortener-prod           # PodDisruptionBudgets
 
 ## Environment Comparison
 
-| Component | Dev | Staging | Prod |
-|-----------|-----|---------|------|
-| App Replicas | 1 | 2 | 3 |
-| PostgreSQL Instances | 1 | 2 | 3 |
-| Redis Replicas | 1 | 2 | 3 |
-| Redis Sentinel | 1 | 3 | 3 |
-| RabbitMQ Replicas | 1 | 2 | 3 |
-| Ingress Host | *.dev.example.com | *.staging.example.com | *.example.com |
+| Component | Staging | Prod |
+|-----------|---------|------|
+| App Replicas | 1 | 3 |
+| PostgreSQL Instances | 1 | 3 |
+| Redis Replicas | 1 | 3 |
+| Redis Sentinel | 1 | 3 |
+| RabbitMQ Replicas | 1 | 3 |
+| Ingress Host | *.staging.example.com | *.example.com |

@@ -4,20 +4,20 @@ metadata:
   name: url-shortener-redis
 spec:
   sentinel:
-    replicas: 3
+    replicas: 1
     resources:
       requests:
-        cpu: 100m
-        memory: 100Mi
+        cpu: 50m
+        memory: 64Mi
       limits:
-        cpu: 200m
-        memory: 200Mi
+        cpu: 100m
+        memory: 128Mi
   redis:
-    replicas: 2
+    replicas: 1
     resources:
       requests:
-        cpu: 100m
-        memory: 256Mi
+        cpu: 50m
+        memory: 128Mi
       limits:
-        cpu: 500m
-        memory: 512Mi
+        cpu: 250m
+        memory: 256Mi
