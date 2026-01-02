@@ -36,15 +36,15 @@ RustによるマイクロサービスアーキテクチャのURL短縮サービ�
 
 ## 技術スタック
 
-| カテゴリ | 技術 |
-|---------|------|
-| 言語 | Rust |
-| Web Framework | Axum |
-| データベース | PostgreSQL (SQLx) |
-| キャッシュ/カウンター | Redis |
-| メッセージキュー | RabbitMQ (lapin) |
-| トレーシング | OpenTelemetry + Jaeger |
-| コンテナ | Docker, Docker Compose |
+| カテゴリ              | 技術                   |
+|-----------------------|------------------------|
+| 言語                  | Rust                   |
+| Web Framework         | Axum                   |
+| データベース          | PostgreSQL (SQLx)      |
+| キャッシュ/カウンター | Redis                  |
+| メッセージキュー      | RabbitMQ (lapin)       |
+| トレーシング          | OpenTelemetry + Jaeger |
+| コンテナ              | Docker, Docker Compose |
 
 ## 前提条件
 

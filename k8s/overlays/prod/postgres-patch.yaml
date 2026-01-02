@@ -1,0 +1,17 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: url-shortener-db
+spec:
+  instances: 3
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+  postgresql:
+    parameters:
+      max_connections: "200"
+      shared_buffers: "256MB"
