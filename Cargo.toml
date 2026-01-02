@@ -24,13 +24,13 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["trace", "cors", "timeout"] }
 
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "migrate"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "migrate", "macros", "derive"] }
 
 # Redis
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 
 # Message queue
-lapin = "2.5"
+lapin = "3.7"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

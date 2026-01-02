@@ -1,0 +1,12 @@
+# Cargo audit configuration
+# https://rustsec.org/
+
+[advisories]
+# Ignore vulnerabilities that don't apply to our use case
+ignore = [
+    # rsa Marvin Attack - pulled in by sqlx-mysql via sqlx-macros-core
+    # We only use PostgreSQL, MySQL is not used in this project
+    # sqlx-macros-core includes all DB backends for compile-time query verification
+    # See: https://github.com/launchbadge/sqlx/issues/2911
+    "RUSTSEC-2023-0071",
+]
