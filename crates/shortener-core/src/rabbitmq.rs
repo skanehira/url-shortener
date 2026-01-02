@@ -19,8 +19,13 @@ pub struct RabbitMQChannel {
 
 impl RabbitMQChannel {
     /// Connect to `RabbitMQ` and set up exchange/queue.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::MessageQueue` if connection, channel creation,
+    /// exchange/queue declaration, or queue binding fails.
     #[instrument(skip(config))]
-    pub async fn new(config: &RabbitMQConfig) -> Result<Self, AppError> {
+    pub async fn try_new(config: &RabbitMQConfig) -> Result<Self, AppError> {
         let conn = Connection::connect(config.url.expose(), ConnectionProperties::default())
             .await
             .map_err(|e| AppError::MessageQueue(e.to_string()))?;

@@ -29,7 +29,7 @@ impl Injector for HeaderInjector {
 impl AccessEventPublisher {
     #[instrument(skip(config))]
     pub async fn new(config: &RabbitMQConfig) -> Result<Self, AppError> {
-        let rabbitmq = RabbitMQChannel::new(config).await?;
+        let rabbitmq = RabbitMQChannel::try_new(config).await?;
         Ok(Self { rabbitmq })
     }
 }

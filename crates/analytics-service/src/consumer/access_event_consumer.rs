@@ -56,7 +56,7 @@ impl AccessEventConsumer {
         config: &RabbitMQConfig,
         repository: Arc<AnalyticsRepository>,
     ) -> anyhow::Result<Self> {
-        let rabbitmq = RabbitMQChannel::new(config).await?;
+        let rabbitmq = RabbitMQChannel::try_new(config).await?;
         Ok(Self {
             rabbitmq,
             repository,
