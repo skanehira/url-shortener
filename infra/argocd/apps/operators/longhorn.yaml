@@ -1,0 +1,42 @@
+# Longhorn - Distributed Storage
+# Kubernetes ネイティブな分散ストレージ
+# https://longhorn.io/docs/1.10.1/deploy/install/install-with-argocd/
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  annotations:
+    # Longhorn は他の Operator より先にインストール (StorageClass 提供)
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://charts.longhorn.io
+    chart: longhorn
+    targetRevision: 1.8.1
+    helm:
+      releaseName: longhorn
+      values: |
+        # ArgoCD でのデプロイ時は必須
+        preUpgradeChecker:
+          jobEnabled: false
+        defaultSettings:
+          defaultDataPath: /var/lib/longhorn
+          # レプリカ数 (ノード数に応じて調整)
+          defaultReplicaCount: 2
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
