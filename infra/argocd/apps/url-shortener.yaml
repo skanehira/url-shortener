@@ -8,23 +8,25 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - list:
         elements:
           - env: staging
             namespace: url-shortener-staging
-            autoSync: "true"
+            autoSync: true
           - env: prod
             namespace: url-shortener-prod
-            autoSync: "false"
+            autoSync: false
 
   template:
     metadata:
-      name: "url-shortener-{{env}}"
+      name: "url-shortener-{{ .env }}"
       namespace: argocd
       labels:
         app.kubernetes.io/name: url-shortener
-        environment: "{{env}}"
+        environment: "{{ .env }}"
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:
@@ -33,16 +35,16 @@ spec:
       source:
         repoURL: https://github.com/skanehira/url-shortener.git
         targetRevision: main
-        path: "k8s/overlays/{{env}}"
+        path: "k8s/overlays/{{ .env }}"
 
       destination:
         server: https://kubernetes.default.svc
-        namespace: "{{namespace}}"
+        namespace: "{{ .namespace }}"
 
       syncPolicy:
         automated:
-          prune: "{{autoSync}}"
-          selfHeal: "{{autoSync}}"
+          prune: {{ .autoSync }}
+          selfHeal: {{ .autoSync }}
           allowEmpty: false
         syncOptions:
           - CreateNamespace=true
