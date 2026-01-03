@@ -1,0 +1,36 @@
+# Root Application (App-of-Apps)
+# このファイルのみ手動で適用: kubectl apply -f infra/argocd/root-app.yaml
+# 以降は ArgoCD が apps/ 配下のすべての Application を自動管理
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/skanehira/url-shortener.git
+    targetRevision: main
+    path: infra/argocd/apps
+    directory:
+      recurse: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

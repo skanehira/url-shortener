@@ -1,18 +1,22 @@
+# URL Shortener Application (Staging/Prod)
+# Operators が起動してから適用するため Sync Wave 1
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: url-shortener
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   generators:
     - list:
         elements:
           - env: staging
             namespace: url-shortener-staging
-            autoSync: true
+            autoSync: "true"
           - env: prod
             namespace: url-shortener-prod
-            autoSync: false
+            autoSync: "false"
 
   template:
     metadata:

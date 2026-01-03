@@ -1,180 +1,206 @@
-# ArgoCD GitOps セットアップガイド
+# ArgoCD セットアップガイド
 
-GitHubリポジトリの変更を自動でKubernetesクラスタに反映するGitOpsパイプラインを構築します。
+Helm を使用した ArgoCD のインストールと App-of-Apps パターンによるアプリケーション管理の手順です。
+
+## 概要
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              ArgoCD                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                     Root Application                                │    │
+│  │                    (infra/argocd/apps/)                             │    │
+│  └───────────────────────────┬─────────────────────────────────────────┘    │
+│              ┌───────────────┼───────────────┐                              │
+│              ▼               ▼               ▼                              │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐                    │
+│  │  Operators    │  │  Operators    │  │ url-shortener │                    │
+│  │  (Wave 0)     │  │  (Wave 0)     │  │  (Wave 1)     │                    │
+│  │               │  │               │  │               │                    │
+│  │ - CloudNative │  │ - Jaeger      │  │ - staging     │                    │
+│  │   PG          │  │ - Sealed      │  │ - prod        │                    │
+│  │ - Redis       │  │   Secrets     │  │               │                    │
+│  │ - RabbitMQ    │  │               │  │               │                    │
+│  └───────────────┘  └───────────────┘  └───────────────┘                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Sync Wave の順序:**
+1. Wave 0: Operators（CloudNativePG, Redis, RabbitMQ, Jaeger, Sealed Secrets）
+2. Wave 1: url-shortener（staging, prod）
 
 ## 前提条件
 
-- Kubernetesクラスタが稼働していること
-- `kubectl`がクラスタに接続できること
-- Homebrewがインストールされていること（Mac）
+- kubeadm で構築された Kubernetes クラスタ
+- kubectl が Mac から実行可能
+- Helm 3.x インストール済み
 
-## 構成図
-
-```
-┌─────────────────┐                    ┌─────────────────┐
-│     GitHub      │                    │    開発者        │
-│   Repository    │◄───── git push ────│                 │
-└────────┬────────┘                    └─────────────────┘
-         │
-         │ ポーリング（デフォルト3分）
-         ▼
-┌─────────────────┐                    ┌─────────────────┐
-│     ArgoCD      │────── deploy ─────►│   Kubernetes    │
-│                 │                    │    Cluster      │
-└─────────────────┘                    └─────────────────┘
-```
-
-## 手順
-
-### Step 1: ArgoCDのインストール
+## Step 1: Helm リポジトリ追加
 
 ```bash
-# namespaceを作成
-kubectl create namespace argocd
-
-# ArgoCDをインストール
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
-# 全Podが起動するまで待機（2-3分かかる）
-kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
-
-# 起動確認
-kubectl get pods -n argocd
+# ArgoCD Helm リポジトリ追加
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
 ```
 
-### Step 2: ArgoCD CLIのインストール
+## Step 2: ArgoCD Namespace 作成
+
+```bash
+kubectl create namespace argocd
+```
+
+## Step 3: ArgoCD Helm インストール
+
+```bash
+# ArgoCD インストール
+helm install argocd argo/argo-cd \
+  --namespace argocd \
+  --set configs.params."server\.insecure"=true \
+  --set server.service.type=LoadBalancer \
+  --wait
+
+# Pod が起動するまで待機
+kubectl wait --namespace argocd \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/name=argocd-server \
+  --timeout=300s
+```
+
+### Helm values のカスタマイズ（オプション）
+
+より細かくカスタマイズする場合は values ファイルを作成:
+
+```bash
+cat > argocd-values.yaml <<'EOF'
+configs:
+  params:
+    server.insecure: true
+
+server:
+  service:
+    type: LoadBalancer
+
+# HA 構成にする場合
+# controller:
+#   replicas: 2
+# repoServer:
+#   replicas: 2
+# server:
+#   replicas: 2
+EOF
+
+helm install argocd argo/argo-cd \
+  --namespace argocd \
+  -f argocd-values.yaml \
+  --wait
+```
+
+## Step 4: 初期パスワード取得
+
+```bash
+# 初期 admin パスワードを取得
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d | pbcopy
+```
+
+## Step 5: ArgoCD UI アクセス
+
+```bash
+# LoadBalancer IP 確認
+kubectl get svc -n argocd argocd-server
+
+# 出力例:
+# NAME            TYPE           EXTERNAL-IP     PORT(S)
+# argocd-server   LoadBalancer   192.168.2.202   80:xxxxx/TCP,443:xxxxx/TCP
+```
+
+ブラウザで `http://<EXTERNAL-IP>` にアクセスし、以下でログイン:
+- ユーザー名: `admin`
+- パスワード: Step 4 で取得したパスワード
+
+## Step 6: Root Application 適用
+
+App-of-Apps パターンの起点となる Root Application を適用します。
+
+```bash
+kubectl apply -f infra/argocd/root-app.yaml
+```
+
+これにより、ArgoCD が以下を自動的にデプロイします:
+
+1. **Wave 0 (Operators)**
+   - CloudNativePG Operator
+   - Redis Operator
+   - RabbitMQ Cluster Operator
+   - Jaeger Operator
+   - Sealed Secrets Controller
+
+2. **Wave 1 (Applications)**
+   - url-shortener-staging
+   - url-shortener-prod
+
+## Step 7: ArgoCD CLI インストール（オプション）
+
+CLI を使用する場合はインストールしてください。
 
 ```bash
 brew install argocd
 ```
 
-### Step 3: 初期パスワードの取得
+## Step 8: デプロイ状況確認
 
 ```bash
-# 初期adminパスワードを取得
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath="{.data.password}" | base64 -d; echo
-```
+# ArgoCD CLI でログイン（オプション）
+argocd login <EXTERNAL-IP> --username admin --password <password> --insecure
 
-出力されたパスワードをメモしておく。
-
-### Step 4: ArgoCD UIへのアクセス
-
-```bash
-# ポートフォワード（バックグラウンドで実行）
-kubectl port-forward svc/argocd-server -n argocd 8443:443 &
-
-# ブラウザでアクセス
-open https://localhost:8443
-```
-
-- ユーザー名: `admin`
-- パスワード: Step 3で取得した値
-
-### Step 5: ArgoCD CLIでログイン
-
-```bash
-# CLIでログイン（証明書警告をスキップ）
-argocd login localhost:8443 --insecure
-
-# ユーザー名とパスワードを入力
-```
-
-### Step 6: GitHubリポジトリを登録
-
-**パブリックリポジトリの場合:**
-```bash
-argocd repo add https://github.com/skanehira/multipass-k8s.git
-```
-
-**プライベートリポジトリの場合:**
-```bash
-# GitHub Personal Access Token を使用
-argocd repo add https://github.com/skanehira/multipass-k8s.git \
-  --username <GitHubユーザー名> \
-  --password <Personal Access Token>
-```
-
-登録確認:
-```bash
-argocd repo list
-```
-
-### Step 7: Applicationを作成
-
-```bash
-# Applicationマニフェストを適用
-kubectl apply -f argocd/nginx-app.yaml
-```
-
-`argocd/nginx-app.yaml` の内容:
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: nginx-app
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/skanehira/multipass-k8s.git
-    targetRevision: main
-    path: deployment
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-```
-
-### Step 8: 同期状態を確認
-
-```bash
-# CLIで確認
+# Application 一覧
 argocd app list
-argocd app get nginx-app
 
 # または kubectl で確認
-kubectl get application -n argocd
+kubectl get applications -n argocd
 ```
 
-## ポーリング間隔の変更（オプション）
+### UI での確認
 
-デフォルトは3分間隔。短くしたい場合:
+ArgoCD UI の Applications ページで以下が確認できます:
+- root: Healthy, Synced
+- cloudnative-pg: Healthy, Synced
+- redis-operator: Healthy, Synced
+- rabbitmq-operator: Healthy, Synced
+- jaeger-operator: Healthy, Synced
+- sealed-secrets: Healthy, Synced
+- url-shortener-staging: Healthy, Synced
+- url-shortener-prod: Healthy, Synced (手動同期)
 
-```bash
-# ConfigMapを編集
-kubectl edit configmap argocd-cm -n argocd
+## ディレクトリ構成
+
+```
+infra/argocd/
+├── root-app.yaml              ← 唯一手動で適用
+└── apps/
+    ├── operators/
+    │   ├── cloudnative-pg.yaml   ← Wave 0
+    │   ├── redis-operator.yaml   ← Wave 0
+    │   ├── rabbitmq-operator.yaml← Wave 0
+    │   ├── jaeger-operator.yaml  ← Wave 0
+    │   └── sealed-secrets.yaml   ← Wave 0
+    └── url-shortener.yaml        ← Wave 1 (ApplicationSet)
 ```
 
-以下を追加:
+## Sync Wave について
+
+ArgoCD の Sync Wave は、リソースのデプロイ順序を制御する機能です。
+
 ```yaml
-data:
-  timeout.reconciliation: 60s  # 1分に変更
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"  # 数値が小さいほど先にデプロイ
 ```
 
-設定を反映:
-```bash
-kubectl rollout restart deployment argocd-repo-server -n argocd
-```
+- Wave 0: Operators（CRD や Controller が必要）
+- Wave 1: Applications（Operators が提供する CRD を使用）
 
-## 動作確認
-
-1. `deployment/nginx.yaml` を編集してGitHubにpush
-2. 数分後（ポーリング間隔）にArgoCDが変更を検知
-3. 自動でクラスタに反映される
-
-```bash
-# 同期状態を監視
-argocd app get nginx-app --refresh
-
-# 手動で即時同期したい場合
-argocd app sync nginx-app
-```
+これにより、Operators が完全に起動してから url-shortener がデプロイされます。
 
 ## よく使うコマンド
 
@@ -183,44 +209,73 @@ argocd app sync nginx-app
 | `argocd app list` | アプリ一覧 |
 | `argocd app get <app>` | アプリ詳細 |
 | `argocd app sync <app>` | 手動同期 |
+| `argocd app sync <app> --prune` | 手動同期（削除含む） |
 | `argocd app history <app>` | デプロイ履歴 |
 | `argocd app rollback <app> <id>` | ロールバック |
 | `argocd app delete <app>` | アプリ削除 |
 
 ## トラブルシューティング
 
-### Podが起動しない
+### Application が Sync されない
+
 ```bash
-kubectl describe pod -n argocd
-kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server
+# Application の詳細確認
+kubectl describe application root -n argocd
+
+# Sync 強制実行
+argocd app sync root --prune
 ```
 
-### 同期が失敗する
-```bash
-argocd app get nginx-app
-# SYNCステータスとHEALTHを確認
+### Operator のデプロイ失敗
 
-# 詳細なエラーを確認
-argocd app sync nginx-app --dry-run
+```bash
+# 特定の Application の状態確認
+kubectl get application cloudnative-pg -n argocd -o yaml
+
+# Events 確認
+kubectl get events -n argocd --sort-by='.lastTimestamp'
 ```
 
-### リポジトリに接続できない
-```bash
-argocd repo list
-# CONNECTION STATUSを確認
+### Pod の状態確認
 
-# 再登録
-argocd repo rm https://github.com/skanehira/multipass-k8s.git
-argocd repo add https://github.com/skanehira/multipass-k8s.git
+```bash
+# Operator Pod の状態
+kubectl get pods -n cnpg-system
+kubectl get pods -n redis-operator-system
+kubectl get pods -n rabbitmq-system
+kubectl get pods -n observability
+```
+
+## パスワード変更
+
+```bash
+# ArgoCD CLI でパスワード変更
+argocd account update-password
+```
+
+## ArgoCD アップグレード
+
+```bash
+# リポジトリ更新
+helm repo update
+
+# アップグレード（--reuse-values で既存設定を維持）
+helm upgrade argocd argo/argo-cd \
+  --namespace argocd \
+  --reuse-values
 ```
 
 ## クリーンアップ
 
-```bash
-# Applicationを削除
-argocd app delete nginx-app
+ArgoCD と関連リソースを完全に削除する場合:
 
-# ArgoCD自体を削除
-kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```bash
+# Root Application 削除（子 Application も削除される）
+kubectl delete application root -n argocd
+
+# ArgoCD Helm リリース削除
+helm uninstall argocd -n argocd
+
+# Namespace 削除
 kubectl delete namespace argocd
 ```

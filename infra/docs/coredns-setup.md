@@ -9,9 +9,9 @@
 │       Mac       │     │              Kubernetes Cluster                 │
 │                 │     │                                                 │
 │  curl           │     │   ┌─────────────┐     ┌─────────────────────┐   │
-│  staging.k8s.   │────►│   │   CoreDNS   │────►│   Ingress Controller│   │
-│  local          │ DNS │   │             │     │   (nginx)           │   │
-│                 │     │   │  k8s.local  │     │                     │   │
+│  url-shortener. │────►│   │   CoreDNS   │────►│   NGINX Gateway     │   │
+│  staging.k8s.   │ DNS │   │             │     │   Fabric            │   │
+│  local          │     │   │  k8s.local  │     │                     │   │
 │                 │     │   │  ゾーン管理 │     │   192.168.x.x       │   │
 │                 │     │   └─────────────┘     └─────────────────────┘   │
 └─────────────────┘     └─────────────────────────────────────────────────┘
@@ -29,36 +29,69 @@
 # MetalLB の IP レンジを確認
 kubectl get ipaddresspool -n metallb-system -o yaml
 
-# nginx-ingress が入っているか確認
-kubectl get pods -n ingress-nginx
+# NGINX Gateway Fabric が入っているか確認（未インストールならエラー）
+kubectl get pods -n nginx-gateway
 ```
 
-## Step 2: nginx-ingress Controller インストール
+## Step 2: NGINX Gateway Fabric インストール
 
 既に導入済みの場合はスキップしてください。
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/cloud/deploy.yaml
+# 1. Gateway API CRDs インストール (Kubernetes SIG 公式)
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml
 
-# Pod が起動するまで待機
-kubectl wait --namespace ingress-nginx \
+# 2. NGINX Gateway Fabric CRDs インストール
+kubectl apply --server-side -f https://raw.githubusercontent.com/nginx/nginx-gateway-fabric/v2.3.0/deploy/crds.yaml
+
+# 3. NGINX Gateway Fabric Control Plane インストール
+kubectl apply -f https://raw.githubusercontent.com/nginx/nginx-gateway-fabric/v2.3.0/deploy/default/deploy.yaml
+
+# Control Plane Pod が起動するまで待機
+kubectl wait --namespace nginx-gateway \
   --for=condition=ready pod \
-  --selector=app.kubernetes.io/component=controller \
+  --selector=app.kubernetes.io/name=nginx-gateway \
   --timeout=120s
 
-# LoadBalancer IP 確認
-kubectl get svc -n ingress-nginx ingress-nginx-controller
+# 確認
+kubectl get pods -n nginx-gateway
 ```
 
 出力例:
 ```
-NAME                       TYPE           EXTERNAL-IP     PORT(S)
-ingress-nginx-controller   LoadBalancer   192.168.2.200   80:xxxxx/TCP,443:xxxxx/TCP
+NAME                             READY   STATUS    RESTARTS   AGE
+nginx-gateway-5c765bc7b6-xxxxx   1/1     Running   0          30s
+```
+
+この時点では Control Plane のみが起動しています。Data Plane (実際の NGINX) は Gateway リソースを作成すると動的に起動します。
+
+## Step 3: アプリケーションデプロイ & LoadBalancer IP 確認
+
+Gateway リソースはアプリケーションマニフェスト (`k8s/overlays/staging`) で管理されています。
+
+```bash
+# Staging 環境をデプロイ
+kubectl apply -k k8s/overlays/staging
+
+# Data Plane Pod が起動するまで待機
+kubectl wait --namespace url-shortener-staging \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/name=staging-shortener-gateway-nginx \
+  --timeout=120s
+
+# LoadBalancer IP 確認
+kubectl get svc -n url-shortener-staging staging-shortener-gateway-nginx
+```
+
+出力例:
+```
+NAME                             TYPE           EXTERNAL-IP     PORT(S)
+staging-shortener-gateway-nginx  LoadBalancer   192.168.2.200   80:xxxxx/TCP
 ```
 
 この `EXTERNAL-IP` を控えておきます。
 
-## Step 3: CoreDNS ConfigMap 編集
+## Step 4: CoreDNS ConfigMap 編集
 
 ```bash
 kubectl edit configmap coredns -n kube-system
@@ -71,14 +104,14 @@ k8s.local:53 {
     errors
     cache 30
     hosts {
-        192.168.2.200 staging.k8s.local
-        192.168.2.200 prod.k8s.local
+        192.168.2.200 url-shortener.staging.k8s.local
+        192.168.2.200 url-shortener.prod.k8s.local
         fallthrough
     }
 }
 ```
 
-※ `192.168.2.200` は Step 2 で確認した EXTERNAL-IP に置き換えてください
+※ `192.168.2.200` は Step 3 で確認した EXTERNAL-IP に置き換えてください
 
 ### 編集後の Corefile 例
 
@@ -94,8 +127,8 @@ data:
         errors
         cache 30
         hosts {
-            192.168.2.200 staging.k8s.local
-            192.168.2.200 prod.k8s.local
+            192.168.2.200 url-shortener.staging.k8s.local
+            192.168.2.200 url-shortener.prod.k8s.local
             fallthrough
         }
     }
@@ -121,7 +154,7 @@ data:
     }
 ```
 
-## Step 4: CoreDNS 再起動
+## Step 5: CoreDNS 再起動
 
 設定を反映するため CoreDNS を再起動します。
 
@@ -132,125 +165,133 @@ kubectl rollout restart deployment coredns -n kube-system
 kubectl rollout status deployment coredns -n kube-system
 ```
 
-## Step 5: CoreDNS を外部公開
+## Step 6: CoreDNS を外部公開
 
-Mac から CoreDNS にアクセスできるようにします。
-
-### 方法A: 既存の kube-dns を NodePort 化
+Mac から CoreDNS にアクセスできるようにするため、LoadBalancer Service を作成します。
 
 ```bash
-kubectl patch svc kube-dns -n kube-system -p '{"spec": {"type": "NodePort", "ports": [{"name": "dns", "port": 53, "protocol": "UDP", "nodePort": 30053}, {"name": "dns-tcp", "port": 53, "protocol": "TCP", "nodePort": 30053}]}}'
+# CoreDNS 外部公開用 Service を適用
+kubectl apply -f infra/k8s/coredns-external-service.yaml
+
+# LoadBalancer IP 確認
+kubectl get svc -n kube-system coredns-external
 ```
 
-### 方法B: 専用 Service 作成（推奨）
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Service
-metadata:
-  name: coredns-external
-  namespace: kube-system
-spec:
-  type: NodePort
-  selector:
-    k8s-app: kube-dns
-  ports:
-    - name: dns-udp
-      port: 53
-      targetPort: 53
-      protocol: UDP
-      nodePort: 30053
-    - name: dns-tcp
-      port: 53
-      targetPort: 53
-      protocol: TCP
-      nodePort: 30053
-EOF
+出力例:
+```
+NAME               TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)
+coredns-external   LoadBalancer   10.x.x.x       192.168.2.201   53:xxxxx/UDP,53:xxxxx/TCP
 ```
 
-## Step 6: Mac 側の resolver 設定
+この `EXTERNAL-IP` を控えておきます。
+
+## Step 7: Mac 側の resolver 設定
 
 Mac の DNS 解決設定を追加します。
 
 ```bash
-# Master VM の IP を確認
-MASTER_IP=$(multipass info k8s-master --format json | jq -r '.info["k8s-master"].ipv4[0]')
-echo "Master IP: $MASTER_IP"
+# CoreDNS の LoadBalancer IP を確認
+DNS_IP=$(kubectl get svc -n kube-system coredns-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "DNS IP: $DNS_IP"
 
 # resolver ディレクトリ作成
 sudo mkdir -p /etc/resolver
 
 # k8s.local 用の resolver 設定
 sudo tee /etc/resolver/k8s.local <<EOF
-nameserver $MASTER_IP
-port 30053
+nameserver $DNS_IP
 EOF
 
 # 設定確認
 cat /etc/resolver/k8s.local
 ```
 
-## Step 7: 動作確認
+## Step 8: 動作確認
 
 ### DNS 解決確認
 
 ```bash
+# CoreDNS の LoadBalancer IP を取得
+DNS_IP=$(kubectl get svc -n kube-system coredns-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
 # dig で確認
-dig staging.k8s.local @$(multipass info k8s-master --format json | jq -r '.info["k8s-master"].ipv4[0]') -p 30053
+dig url-shortener.staging.k8s.local @$DNS_IP
 
 # 期待する出力:
 # ;; ANSWER SECTION:
-# staging.k8s.local.    30    IN    A    192.168.2.200
+# url-shortener.staging.k8s.local.    30    IN    A    192.168.2.200
 ```
 
 ### Mac からの名前解決確認
 
 ```bash
 # Mac のローカル resolver 経由で確認
-dscacheutil -q host -a name staging.k8s.local
-
-# ping で確認
-ping -c 1 staging.k8s.local
+dscacheutil -q host -a name url-shortener.staging.k8s.local
 ```
 
-### Ingress 経由のアクセス確認
+期待する出力:
+```
+name: url-shortener.staging.k8s.local
+ip_address: 192.168.2.200
+```
 
-Ingress リソースを作成してテストします。
+### HTTP アクセス確認
+
+テスト用の nginx をデプロイして、CoreDNS 経由でアクセスできることを確認します。
 
 ```bash
-# テスト用 Deployment と Service
-kubectl create deployment nginx --image=nginx
-kubectl expose deployment nginx --port=80
+# テスト用 nginx Deployment をデプロイ
+kubectl apply -f infra/example/nginx.yaml -n url-shortener-staging
 
-# テスト用 Ingress
-kubectl apply -f - <<EOF
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+# ClusterIP Service を作成
+kubectl expose deployment nginx -n url-shortener-staging --port=80
+
+# HTTPRoute を作成（Gateway 経由でルーティング）
+kubectl apply -n url-shortener-staging -f - <<'EOF'
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: nginx-test
 spec:
-  ingressClassName: nginx
+  parentRefs:
+    - name: staging-shortener-gateway
+  hostnames:
+    - "url-shortener.staging.k8s.local"
   rules:
-    - host: staging.k8s.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: nginx
-                port:
-                  number: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: nginx
+          port: 80
 EOF
 
-# アクセス確認
-curl http://staging.k8s.local
+# Pod が起動するまで待機
+kubectl wait --namespace url-shortener-staging \
+  --for=condition=ready pod \
+  --selector=app=nginx \
+  --timeout=60s
 
-# クリーンアップ
-kubectl delete ingress nginx-test
-kubectl delete svc nginx
-kubectl delete deployment nginx
+# アクセス確認
+curl http://url-shortener.staging.k8s.local
+```
+
+期待する出力:
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+...
+```
+
+確認後、テストリソースをクリーンアップ:
+
+```bash
+kubectl delete httproute nginx-test -n url-shortener-staging
+kubectl delete svc nginx -n url-shortener-staging
+kubectl delete deployment nginx -n url-shortener-staging
 ```
 
 ## トラブルシューティング
@@ -279,11 +320,24 @@ sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
 scutil --dns | grep -A 5 "k8s.local"
 ```
 
-### NodePort 接続確認
+### CoreDNS Service 確認
 
 ```bash
-# Master VM で直接確認
-multipass exec k8s-master -- dig staging.k8s.local @127.0.0.1 -p 53
+# LoadBalancer IP が割り当てられているか確認
+kubectl get svc -n kube-system coredns-external
+
+# CoreDNS Pod が起動しているか確認
+kubectl get pods -n kube-system -l k8s-app=kube-dns
+```
+
+### Gateway/HTTPRoute 確認
+
+```bash
+# Gateway 状態確認
+kubectl get gateway -n url-shortener-staging
+
+# HTTPRoute 状態確認
+kubectl get httproute -n url-shortener-staging
 ```
 
 ## ドメイン追加方法
@@ -298,9 +352,9 @@ kubectl edit configmap coredns -n kube-system
 
 ```
 hosts {
-    192.168.2.200 staging.k8s.local
-    192.168.2.200 prod.k8s.local
-    192.168.2.200 new-app.k8s.local    # 追加
+    192.168.2.200 url-shortener.staging.k8s.local
+    192.168.2.200 url-shortener.prod.k8s.local
+    192.168.2.200 new-app.staging.k8s.local    # 追加
     fallthrough
 }
 ```
@@ -314,4 +368,4 @@ kubectl rollout restart deployment coredns -n kube-system
 ## 次のステップ
 
 手動管理から自動化に進む場合は、External DNS の導入を検討してください。
-External DNS を使用すると、Ingress リソースの作成時に自動的に DNS レコードが登録されます。
+External DNS を使用すると、Gateway/HTTPRoute リソースの作成時に自動的に DNS レコードが登録されます。

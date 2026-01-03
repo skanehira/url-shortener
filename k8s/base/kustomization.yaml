@@ -5,6 +5,8 @@ namespace: url-shortener
 
 resources:
   - namespace.yaml
+  # Gateway API
+  - gateway/
   # Middleware
   - postgres/
   - redis/

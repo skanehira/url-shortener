@@ -1,0 +1,23 @@
+# CoreDNS を外部に公開するための LoadBalancer Service
+# Mac から k8s.local ドメインの名前解決を行うために使用
+apiVersion: v1
+kind: Service
+metadata:
+  name: coredns-external
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: coredns-external
+    app.kubernetes.io/component: dns
+spec:
+  type: LoadBalancer
+  selector:
+    k8s-app: kube-dns
+  ports:
+    - name: dns-udp
+      port: 53
+      targetPort: 53
+      protocol: UDP
+    - name: dns-tcp
+      port: 53
+      targetPort: 53
+      protocol: TCP

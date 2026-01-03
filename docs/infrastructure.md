@@ -13,12 +13,12 @@
 │  │                        url-shortener-prod namespace                        │  │
 │  │                                                                            │  │
 │  │  ┌──────────────────────────────────────────────────────────────────────┐  │  │
-│  │  │                          Ingress Layer                               │  │  │
+│  │  │                          Gateway Layer                              │  │  │
 │  │  │                                                                      │  │  │
 │  │  │   ┌────────────────────────────────────────────────────────────┐     │  │  │
-│  │  │   │  Ingress (nginx)  url-shortener.example.com                │     │  │  │
-│  │  │   │  - TLS termination                                         │     │  │  │
-│  │  │   │  - Path-based routing                                      │     │  │  │
+│  │  │   │  Gateway API + NGINX Gateway Fabric                        │     │  │  │
+│  │  │   │  - HTTPRoute: url-shortener.prod.k8s.local                 │     │  │  │
+│  │  │   │  - Host-based routing                                      │     │  │  │
 │  │  │   └────────────────────────────┬───────────────────────────────┘     │  │  │
 │  │  │                                │                                     │  │  │
 │  │  └────────────────────────────────┼─────────────────────────────────────┘  │  │
@@ -97,8 +97,8 @@
 
 ```
                                  ┌─────────────────┐
-                                 │     Ingress     │
-                                 │  (nginx + TLS)  │
+                                 │  Gateway API    │
+                                 │  (HTTPRoute)    │
                                  └────────┬────────┘
                                           │
                                           ▼
@@ -137,15 +137,14 @@
 | shortener-service | 3 | 250m | 256Mi | 1000m | 1Gi | minAvailable: 1 |
 | analytics-service | 3 | 250m | 256Mi | 1000m | 1Gi | minAvailable: 1 |
 
-### Ingress
+### Gateway API
 
 | Setting | Value |
 |---------|-------|
-| Controller | nginx-ingress |
-| Host (prod) | url-shortener.example.com |
-| Host (staging) | url-shortener.staging.example.com |
-| Host (dev) | url-shortener.dev.example.com |
-| TLS | Enabled (secretName: shortener-tls) |
+| Controller | NGINX Gateway Fabric |
+| GatewayClass | nginx |
+| Host (prod) | url-shortener.prod.k8s.local |
+| Host (staging) | url-shortener.staging.k8s.local |
 
 ### PostgreSQL (CloudNativePG)
 
@@ -214,11 +213,11 @@
 
 ```
                                  ┌─────────────────┐
-                                 │    Ingress      │
-                                 │  (nginx + TLS)  │
+                                 │  Gateway API    │
+                                 │  (HTTPRoute)    │
                                  │                 │
                                  │ url-shortener.  │
-                                 │ example.com     │
+                                 │ prod.k8s.local  │
                                  └────────┬────────┘
                                           │
                                           ▼
@@ -264,6 +263,8 @@
 
 | Operator | Purpose | Namespace |
 |----------|---------|-----------|
+| Gateway API CRDs | Gateway API resources | - |
+| NGINX Gateway Fabric | Gateway controller | nginx-gateway |
 | Longhorn | Distributed storage | longhorn-system |
 | CloudNativePG | PostgreSQL HA | cnpg-system |
 | Redis Operator (Spotahome) | Redis Sentinel | redis-operator |
@@ -279,11 +280,12 @@ kubectl apply -k k8s/overlays/prod
 
 # Verify
 kubectl get pods -n url-shortener-prod
+kubectl get gateway -n url-shortener-prod       # Gateway
+kubectl get httproute -n url-shortener-prod     # HTTPRoute
 kubectl get cluster -n url-shortener-prod       # PostgreSQL
 kubectl get redisfailover -n url-shortener-prod # Redis
 kubectl get rabbitmqcluster -n url-shortener-prod # RabbitMQ
 kubectl get jaeger -n url-shortener-prod        # Jaeger
-kubectl get ingress -n url-shortener-prod       # Ingress
 kubectl get pdb -n url-shortener-prod           # PodDisruptionBudgets
 ```
 
@@ -296,4 +298,4 @@ kubectl get pdb -n url-shortener-prod           # PodDisruptionBudgets
 | Redis Replicas | 1 | 3 |
 | Redis Sentinel | 1 | 3 |
 | RabbitMQ Replicas | 1 | 3 |
-| Ingress Host | *.staging.example.com | *.example.com |
+| HTTPRoute Host | url-shortener.staging.k8s.local | url-shortener.prod.k8s.local |

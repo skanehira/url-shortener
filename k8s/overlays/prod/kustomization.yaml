@@ -40,5 +40,5 @@ patches:
   - path: redis-patch.yaml
   - path: rabbitmq-patch.yaml
 
-  # Ingress - production hostname
-  - path: ingress-patch.yaml
+  # HTTPRoute - production hostname
+  - path: httproute-patch.yaml

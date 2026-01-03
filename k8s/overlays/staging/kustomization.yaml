@@ -8,6 +8,12 @@ resources:
 
 namePrefix: staging-
 
+images:
+  - name: ghcr.io/skanehira/url-shortener/shortener-service
+    newTag: latest
+  - name: ghcr.io/skanehira/url-shortener/analytics-service
+    newTag: latest
+
 commonLabels:
   environment: staging
 
@@ -25,5 +31,5 @@ patches:
   - path: redis-patch.yaml
   - path: rabbitmq-patch.yaml
 
-  # Ingress - staging hostname
-  - path: ingress-patch.yaml
+  # HTTPRoute - staging hostname
+  - path: httproute-patch.yaml
