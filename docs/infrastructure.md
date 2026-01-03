@@ -187,7 +187,7 @@
 
 | Component | Version | Storage | Retention |
 |-----------|---------|---------|-----------|
-| OTEL Collector | 0.115.0 | - | - |
+| OTEL Collector | 0.141.0 | - | - |
 | Elasticsearch | 8.11.0 | 10Gi (Longhorn) | 7 days |
 
 ### Storage (Longhorn)
