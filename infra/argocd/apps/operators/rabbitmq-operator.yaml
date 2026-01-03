@@ -1,5 +1,6 @@
-# RabbitMQ Cluster Operator
+# RabbitMQ Cluster Operator (Official)
 # RabbitMQ クラスタを Kubernetes ネイティブに管理
+# 公式 GitHub リポジトリから直接デプロイ
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -13,13 +14,9 @@ spec:
   project: default
 
   source:
-    repoURL: https://charts.bitnami.com/bitnami
-    chart: rabbitmq-cluster-operator
-    targetRevision: 4.4.34
-    helm:
-      releaseName: rabbitmq-operator
-      values: |
-        # 必要に応じてカスタマイズ
+    repoURL: https://github.com/rabbitmq/cluster-operator.git
+    targetRevision: v2.18.0
+    path: config/default
 
   destination:
     server: https://kubernetes.default.svc

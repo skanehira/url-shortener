@@ -19,7 +19,9 @@ spec:
     helm:
       releaseName: redis-operator
       values: |
-        # 必要に応じてカスタマイズ
+        image:
+          repository: quay.io/spotahome/redis-operator
+          tag: v1.2.4
 
   destination:
     server: https://kubernetes.default.svc
