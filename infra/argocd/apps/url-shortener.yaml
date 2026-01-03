@@ -42,10 +42,12 @@ spec:
         namespace: "{{ .namespace }}"
 
       syncPolicy:
+        {{- if .autoSync }}
         automated:
-          prune: {{ .autoSync }}
-          selfHeal: {{ .autoSync }}
+          prune: true
+          selfHeal: true
           allowEmpty: false
+        {{- end }}
         syncOptions:
           - CreateNamespace=true
           - PrunePropagationPolicy=foreground
