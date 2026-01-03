@@ -27,10 +27,20 @@ data:
         spike_limit_mib: 128
 
     exporters:
-      otlp/jaeger:
-        endpoint: jaeger-collector:4317
-        tls:
-          insecure: true
+      elasticsearch:
+        endpoints:
+          - http://elasticsearch:9200
+        logs_index: otel-logs
+        traces_index: otel-traces
+        sending_queue:
+          enabled: true
+          num_consumers: 10
+          queue_size: 1000
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
 
       debug:
         verbosity: basic
@@ -40,7 +50,7 @@ data:
         traces:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [otlp/jaeger]
+          exporters: [elasticsearch]
         metrics:
           receivers: [otlp]
           processors: [memory_limiter, batch]
@@ -48,7 +58,7 @@ data:
         logs:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [debug]
+          exporters: [elasticsearch]
 
 ---
 apiVersion: apps/v1

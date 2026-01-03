@@ -18,17 +18,27 @@ processors:
 exporters:
   debug:
     verbosity: detailed
-  otlp/jaeger:
-    endpoint: jaeger:4317
-    tls:
-      insecure: true
+  elasticsearch:
+    endpoints:
+      - http://elasticsearch:9200
+    logs_index: otel-logs
+    traces_index: otel-traces
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 1000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [otlp/jaeger, debug]
+      exporters: [elasticsearch, debug]
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch]
@@ -36,7 +46,7 @@ service:
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [debug]
+      exporters: [elasticsearch, debug]
   telemetry:
     logs:
       level: info

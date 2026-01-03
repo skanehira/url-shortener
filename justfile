@@ -5,7 +5,7 @@ set dotenv-load := true
 default:
   @just --list
 
-# ミドルウェア（PostgreSQL, Redis, RabbitMQ, OTEL, Jaeger）を起動
+# ミドルウェア（PostgreSQL, Redis, RabbitMQ, OTEL, Elasticsearch）を起動
 up:
   cd docker && docker compose up -d
 
@@ -86,10 +86,6 @@ run-all:
 # RabbitMQ 管理画面を開く
 rabbitmq-ui:
   open http://localhost:15672
-
-# Jaeger UI を開く
-jaeger-ui:
-  open http://localhost:16686
 
 # Health check
 health:

@@ -6,7 +6,7 @@ RustによるマイクロサービスアーキテクチャのURL短縮サービ�
 
 ```
                                     ┌─────────────────┐
-                                    │     Jaeger      │
+                                    │  Elasticsearch  │
                                     │   (トレース)    │
                                     └────────▲────────┘
                                              │
@@ -43,7 +43,7 @@ RustによるマイクロサービスアーキテクチャのURL短縮サービ�
 | データベース          | PostgreSQL (SQLx)      |
 | キャッシュ/カウンター | Redis                  |
 | メッセージキュー      | RabbitMQ (lapin)       |
-| トレーシング          | OpenTelemetry + Jaeger |
+| トレーシング          | OpenTelemetry + Elasticsearch |
 | コンテナ              | Docker, Docker Compose |
 
 ## 前提条件
@@ -80,7 +80,7 @@ just up
 - Redis (6379)
 - RabbitMQ (5672, 管理画面: 15672)
 - OTEL Collector (4317)
-- Jaeger (16686)
+- Elasticsearch (9200)
 
 ### 3. マイグレーション実行
 
@@ -207,7 +207,6 @@ just test-api     # API 動作確認テスト
 just logs-shortener  # shortener-service ログ表示
 just logs-analytics  # analytics-service ログ表示
 
-just jaeger-ui    # Jaeger UI を開く (http://localhost:16686)
 just rabbitmq-ui  # RabbitMQ 管理画面を開く (http://localhost:15672)
 
 just create-url "https://example.com"  # 短縮URL作成
@@ -219,9 +218,9 @@ just list-analytics                     # アナリティクス一覧取得
 
 ### 分散トレーシング
 
-Jaeger UI: http://localhost:16686
+トレースデータは OTEL Collector 経由で Elasticsearch に保存されます。
 
-shortener-service から analytics-service へのトレース伝播が確認できます:
+shortener-service から analytics-service へのトレース伝播:
 1. shortener-service: リダイレクト処理
 2. RabbitMQ: メッセージ送信
 3. analytics-service: イベント処理・Redis 更新

@@ -78,13 +78,13 @@
 │  │  ┌──────────────────────────────────────────────────────────────────────┐  │  │
 │  │  │                        Observability Layer                           │  │  │
 │  │  │                                                                      │  │  │
-│  │  │   ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐    │  │  │
-│  │  │   │  OTEL Collector │──►│     Jaeger      │──►│  Elasticsearch  │    │  │  │
-│  │  │   │    (0.115.0)    │   │  (production)   │   │    (8.11.0)     │    │  │  │
-│  │  │   │                 │   │   collector +   │   │                 │    │  │  │
-│  │  │   │ traces, metrics │   │     query       │   │  trace storage  │    │  │  │
-│  │  │   └─────────────────┘   └─────────────────┘   │   7 days TTL    │    │  │  │
-│  │  │                                               └─────────────────┘    │  │  │
+│  │  │   ┌─────────────────┐                         ┌─────────────────┐    │  │  │
+│  │  │   │  OTEL Collector │────────────────────────►│  Elasticsearch  │    │  │  │
+│  │  │   │    (0.115.0)    │                         │    (8.11.0)     │    │  │  │
+│  │  │   │                 │                         │                 │    │  │  │
+│  │  │   │ traces, metrics │                         │  trace storage  │    │  │  │
+│  │  │   │      logs       │                         │   7 days TTL    │    │  │  │
+│  │  │   └─────────────────┘                         └─────────────────┘    │  │  │
 │  │  │                                                                      │  │  │
 │  │  └──────────────────────────────────────────────────────────────────────┘  │  │
 │  │                                                                            │  │
@@ -188,8 +188,7 @@
 | Component | Version | Storage | Retention |
 |-----------|---------|---------|-----------|
 | OTEL Collector | 0.115.0 | - | - |
-| Jaeger | 1.62.0 (production strategy) | Elasticsearch | 7 days |
-| Elasticsearch | 8.11.0 | 10Gi (Longhorn) | - |
+| Elasticsearch | 8.11.0 | 10Gi (Longhorn) | 7 days |
 
 ### Storage (Longhorn)
 
@@ -207,7 +206,7 @@
 | RabbitMQ | Node failure | Immediate | None (quorum queues) |
 | App Pod | Pod crash | Immediate | None (stateless) |
 | Storage Node | Node failure | Automatic | None (3-way replication) |
-| Trace Data | Jaeger restart | None | None (Elasticsearch) |
+| Trace Data | OTEL restart | None | None (Elasticsearch) |
 
 ## Network Architecture
 
@@ -240,15 +239,15 @@
  PostgreSQL                              │                                  │
                                          ▼                                  ▼
                                ┌──────────────────┐               ┌──────────────────┐
-                               │ analytics-service│               │  jaeger-collector│
-                               │    :8081         │               │     :4317        │
-                               │  (ClusterIP)     │               └────────┬─────────┘
-                               └────────┬─────────┘                        │
-                                        │                                  ▼
-                                        ▼                         ┌──────────────────┐
-                               ┌──────────────────┐               │  elasticsearch   │
-                               │rfs-url-shortener-│               │     :9200        │
-                               │redis:26379       │               └──────────────────┘
+                               │ analytics-service│               │  elasticsearch   │
+                               │    :8081         │               │     :9200        │
+                               │  (ClusterIP)     │               └──────────────────┘
+                               └────────┬─────────┘
+                                        │
+                                        ▼
+                               ┌──────────────────┐
+                               │rfs-url-shortener-│
+                               │redis:26379       │
                                └──────────────────┘
                                 Redis Sentinel
 ```
@@ -270,7 +269,6 @@
 | Redis Operator (Spotahome) | Redis Sentinel | redis-operator |
 | RabbitMQ Cluster Operator | RabbitMQ HA | rabbitmq-system |
 | SealedSecrets | Secrets encryption | kube-system |
-| Jaeger Operator | Distributed tracing | observability |
 
 ## Deployment
 
@@ -285,7 +283,6 @@ kubectl get httproute -n url-shortener-prod     # HTTPRoute
 kubectl get cluster -n url-shortener-prod       # PostgreSQL
 kubectl get redisfailover -n url-shortener-prod # Redis
 kubectl get rabbitmqcluster -n url-shortener-prod # RabbitMQ
-kubectl get jaeger -n url-shortener-prod        # Jaeger
 kubectl get pdb -n url-shortener-prod           # PodDisruptionBudgets
 ```
 

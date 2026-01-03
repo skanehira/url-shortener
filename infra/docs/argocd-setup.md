@@ -17,16 +17,16 @@ Helm を使用した ArgoCD のインストールと App-of-Apps パターンに
 │  │  Operators    │  │  Operators    │  │ url-shortener │                    │
 │  │  (Wave 0)     │  │  (Wave 0)     │  │  (Wave 1)     │                    │
 │  │               │  │               │  │               │                    │
-│  │ - CloudNative │  │ - Jaeger      │  │ - staging     │                    │
-│  │   PG          │  │ - Sealed      │  │ - prod        │                    │
-│  │ - Redis       │  │   Secrets     │  │               │                    │
+│  │ - CloudNative │  │ - Sealed      │  │ - staging     │                    │
+│  │   PG          │  │   Secrets     │  │ - prod        │                    │
+│  │ - Redis       │  │               │  │               │                    │
 │  │ - RabbitMQ    │  │               │  │               │                    │
 │  └───────────────┘  └───────────────┘  └───────────────┘                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Sync Wave の順序:**
-1. Wave 0: Operators（CloudNativePG, Redis, RabbitMQ, Jaeger, Sealed Secrets）
+1. Wave 0: Operators（CloudNativePG, Redis, RabbitMQ, Sealed Secrets）
 2. Wave 1: url-shortener（staging, prod）
 
 ## 前提条件
@@ -132,7 +132,6 @@ kubectl apply -f infra/argocd/root-app.yaml
    - CloudNativePG Operator
    - Redis Operator
    - RabbitMQ Cluster Operator
-   - Jaeger Operator
    - Sealed Secrets Controller
 
 2. **Wave 1 (Applications)**
@@ -167,7 +166,6 @@ ArgoCD UI の Applications ページで以下が確認できます:
 - cloudnative-pg: Healthy, Synced
 - redis-operator: Healthy, Synced
 - rabbitmq-operator: Healthy, Synced
-- jaeger-operator: Healthy, Synced
 - sealed-secrets: Healthy, Synced
 - url-shortener-staging: Healthy, Synced
 - url-shortener-prod: Healthy, Synced (手動同期)
@@ -182,7 +180,6 @@ infra/argocd/
     │   ├── cloudnative-pg.yaml   ← Wave 0
     │   ├── redis-operator.yaml   ← Wave 0
     │   ├── rabbitmq-operator.yaml← Wave 0
-    │   ├── jaeger-operator.yaml  ← Wave 0
     │   └── sealed-secrets.yaml   ← Wave 0
     └── url-shortener.yaml        ← Wave 1 (ApplicationSet)
 ```
