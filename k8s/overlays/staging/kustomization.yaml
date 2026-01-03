@@ -4,32 +4,34 @@ kind: Kustomization
 namespace: url-shortener-staging
 
 resources:
-  - ../../base
+- ../../base
 
 namePrefix: staging-
 
 images:
-  - name: ghcr.io/skanehira/url-shortener/shortener-service
-    newTag: latest
-  - name: ghcr.io/skanehira/url-shortener/analytics-service
-    newTag: latest
+- name: ghcr.io/skanehira/url-shortener/analytics-service
+  newName: ghcr.io/skanehira/url-shortener/analytics-service
+  newTag: 9c7454ac0aa4797210d4830b9721903b5ad5271d
+- name: ghcr.io/skanehira/url-shortener/shortener-service
+  newName: ghcr.io/skanehira/url-shortener/shortener-service
+  newTag: 9c7454ac0aa4797210d4830b9721903b5ad5271d
 
 commonLabels:
   environment: staging
 
-patches:
   # Application Deployments - single replica for staging
-  - patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 1
-    target:
-      kind: Deployment
 
   # Middleware - staging configuration
-  - path: postgres-patch.yaml
-  - path: redis-patch.yaml
-  - path: rabbitmq-patch.yaml
 
   # HTTPRoute - staging hostname
-  - path: httproute-patch.yaml
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 1
+  target:
+    kind: Deployment
+- path: postgres-patch.yaml
+- path: redis-patch.yaml
+- path: rabbitmq-patch.yaml
+- path: httproute-patch.yaml
