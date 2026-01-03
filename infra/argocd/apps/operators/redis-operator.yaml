@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: https://spotahome.github.io/redis-operator
     chart: redis-operator
-    targetRevision: 3.3.1
+    targetRevision: 3.3.0
     helm:
       releaseName: redis-operator
       values: |
