@@ -7,6 +7,7 @@ use crate::AppState;
 #[derive(Serialize)]
 pub struct HealthResponse {
     status: &'static str,
+    service_name: &'static str,
 }
 
 #[derive(Serialize)]
@@ -19,7 +20,10 @@ pub struct ReadyResponse {
 /// Liveness probe - プロセスが生きているか確認
 #[instrument]
 pub async fn health() -> Json<HealthResponse> {
-    Json(HealthResponse { status: "ok" })
+    Json(HealthResponse {
+        status: "ok",
+        service_name: env!("CARGO_PKG_NAME"),
+    })
 }
 
 /// Readiness probe - トラフィックを受け入れられるか確認
