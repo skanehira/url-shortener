@@ -99,10 +99,12 @@ kubectl create secret generic rabbitmq-credentials \
   > staging-sealed-rabbitmq-credentials.yaml
 
 # url-shortener-secrets
+# NOTE: redis-url は現在直接接続。Sentinel 対応後は以下に変更:
+#   redis+sentinel://rfs-staging-url-shortener-redis:26379/mymaster
 kubectl create secret generic url-shortener-secrets \
   --namespace ${NAMESPACE} \
   --from-literal=database-url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@staging-url-shortener-db-rw:5432/urlshortener" \
-  --from-literal=redis-url="redis://staging-url-shortener-redis-master:6379" \
+  --from-literal=redis-url="redis://rfr-staging-url-shortener-redis-0.rfr-staging-url-shortener-redis:6379" \
   --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@staging-url-shortener-rabbitmq:5672/" \
   --dry-run=client -o yaml | \
   kubeseal --cert sealed-secrets-cert.pem --format yaml \
@@ -137,10 +139,12 @@ kubectl create secret generic rabbitmq-credentials \
   > prod-sealed-rabbitmq-credentials.yaml
 
 # url-shortener-secrets
+# NOTE: redis-url は現在直接接続。Sentinel 対応後は以下に変更:
+#   redis+sentinel://rfs-prod-url-shortener-redis:26379/mymaster
 kubectl create secret generic url-shortener-secrets \
   --namespace ${NAMESPACE} \
   --from-literal=database-url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@prod-url-shortener-db-rw:5432/urlshortener" \
-  --from-literal=redis-url="redis://prod-url-shortener-redis-master:6379" \
+  --from-literal=redis-url="redis://rfr-prod-url-shortener-redis-0.rfr-prod-url-shortener-redis:6379" \
   --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@prod-url-shortener-rabbitmq:5672/" \
   --dry-run=client -o yaml | \
   kubeseal --cert sealed-secrets-cert.pem --format yaml \

@@ -5,6 +5,9 @@ namespace: url-shortener-staging
 
 resources:
 - ../../base
+- staging-sealed-postgres-credentials.yaml
+- staging-sealed-rabbitmq-credentials.yaml
+- staging-sealed-url-shortener-secrets.yaml
 
 namePrefix: staging-
 
