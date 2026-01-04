@@ -26,8 +26,10 @@ spec:
           jobEnabled: false
         defaultSettings:
           defaultDataPath: /var/lib/longhorn
-          # レプリカ数 (ノード数に応じて調整)
-          defaultReplicaCount: 2
+          # レプリカ数 (ワーカーノード2台のため1に設定)
+          defaultReplicaCount: 1
+          # 同一ノードへのレプリカ配置を許可
+          replicaSoftAntiAffinity: true
 
   destination:
     server: https://kubernetes.default.svc

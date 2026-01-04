@@ -11,7 +11,7 @@ spec:
 
   persistence:
     storageClassName: longhorn
-    storage: 10Gi
+    storage: 3Gi
 
   resources:
     requests:

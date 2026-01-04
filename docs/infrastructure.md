@@ -150,8 +150,8 @@
 
 | Setting | Value |
 |---------|-------|
-| Instances | 3 (1 Primary + 2 Replicas) |
-| Storage | 10Gi (Longhorn) |
+| Instances | 2 (1 Primary + 1 Replica) |
+| Storage | 3Gi (Longhorn) |
 | CPU Request | 500m |
 | Memory Request | 1Gi |
 | CPU Limit | 2000m |
@@ -175,7 +175,7 @@
 | Setting | Value |
 |---------|-------|
 | Replicas | 3 (Quorum) |
-| Storage | 20Gi (Longhorn) |
+| Storage | 3Gi (Longhorn) |
 | CPU Request | 500m |
 | Memory Request | 1Gi |
 | CPU Limit | 1000m |
@@ -188,13 +188,13 @@
 | Component | Version | Storage | Retention |
 |-----------|---------|---------|-----------|
 | OTEL Collector | 0.141.0 | - | - |
-| Elasticsearch | 8.11.0 | 10Gi (Longhorn) | 7 days |
+| Elasticsearch | 8.11.0 | 3Gi (Longhorn) | 7 days |
 
 ### Storage (Longhorn)
 
 | Setting | Value |
 |---------|-------|
-| Replication Factor | 3 |
+| Replication Factor | 1 |
 | Data Locality | best-effort |
 
 ## HA Guarantees
