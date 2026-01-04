@@ -26,6 +26,17 @@ data:
         limit_mib: 512
         spike_limit_mib: 128
 
+      filter/health:
+        error_mode: ignore
+        traces:
+          span:
+            - 'name == "health"'
+            - 'name == "ready"'
+            - 'name == "shortener_service::routes::health"'
+            - 'name == "shortener_service::routes::ready"'
+            - 'name == "analytics_service::routes::health"'
+            - 'name == "analytics_service::routes::ready"'
+
     exporters:
       elasticsearch:
         endpoints:
@@ -46,7 +57,7 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [memory_limiter, batch]
+          processors: [memory_limiter, filter/health, batch]
           exporters: [elasticsearch]
         metrics:
           receivers: [otlp]
