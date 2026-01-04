@@ -12,10 +12,10 @@ resources:
 images:
 - name: ghcr.io/skanehira/url-shortener/analytics-service
   newName: ghcr.io/skanehira/url-shortener/analytics-service
-  newTag: 798c39a
+  newTag: 3dd9635
 - name: ghcr.io/skanehira/url-shortener/shortener-service
   newName: ghcr.io/skanehira/url-shortener/shortener-service
-  newTag: 798c39a
+  newTag: 3dd9635
 
 commonLabels:
   environment: staging
