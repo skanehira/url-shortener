@@ -37,10 +37,8 @@ spec:
                 secretKeyRef:
                   name: url-shortener-secrets
                   key: rabbitmq-url
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            - name: OTEL_EXPORTER_ENDPOINT
               value: "http://otel-collector:4317"
-            - name: OTEL_SERVICE_NAME
-              value: "analytics-service"
             - name: RUST_LOG
               value: "info"
           livenessProbe:
