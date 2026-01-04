@@ -53,7 +53,7 @@ kubectl get pods -n kube-system -l app.kubernetes.io/name=sealed-secrets
 kubeseal --fetch-cert \
   --controller-name=sealed-secrets \
   --controller-namespace=kube-system \
-  > sealed-secrets-cert.pem
+  > /tmp/sealed-secrets-cert.pem
 ```
 
 ### Step 2: シークレットの値を準備
@@ -86,7 +86,7 @@ kubectl create secret generic postgres-credentials \
   --from-literal=username=${POSTGRES_USER} \
   --from-literal=password=${POSTGRES_PASSWORD} \
   --dry-run=client -o yaml | \
-  kubeseal --cert sealed-secrets-cert.pem --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
   > staging-sealed-postgres-credentials.yaml
 
 # rabbitmq-credentials
@@ -95,7 +95,7 @@ kubectl create secret generic rabbitmq-credentials \
   --from-literal=username=${RABBITMQ_USER} \
   --from-literal=password=${RABBITMQ_PASSWORD} \
   --dry-run=client -o yaml | \
-  kubeseal --cert sealed-secrets-cert.pem --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
   > staging-sealed-rabbitmq-credentials.yaml
 
 # url-shortener-secrets
@@ -107,7 +107,7 @@ kubectl create secret generic url-shortener-secrets \
   --from-literal=redis-url="redis://rfr-staging-url-shortener-redis-0.rfr-staging-url-shortener-redis:6379" \
   --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@staging-url-shortener-rabbitmq:5672/" \
   --dry-run=client -o yaml | \
-  kubeseal --cert sealed-secrets-cert.pem --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
   > staging-sealed-url-shortener-secrets.yaml
 ```
 
@@ -126,7 +126,7 @@ kubectl create secret generic postgres-credentials \
   --from-literal=username=${POSTGRES_USER} \
   --from-literal=password=${POSTGRES_PASSWORD} \
   --dry-run=client -o yaml | \
-  kubeseal --cert sealed-secrets-cert.pem --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
   > prod-sealed-postgres-credentials.yaml
 
 # rabbitmq-credentials
@@ -135,7 +135,7 @@ kubectl create secret generic rabbitmq-credentials \
   --from-literal=username=${RABBITMQ_USER} \
   --from-literal=password=${RABBITMQ_PASSWORD} \
   --dry-run=client -o yaml | \
-  kubeseal --cert sealed-secrets-cert.pem --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
   > prod-sealed-rabbitmq-credentials.yaml
 
 # url-shortener-secrets
@@ -147,7 +147,7 @@ kubectl create secret generic url-shortener-secrets \
   --from-literal=redis-url="redis://rfr-prod-url-shortener-redis-0.rfr-prod-url-shortener-redis:6379" \
   --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@prod-url-shortener-rabbitmq:5672/" \
   --dry-run=client -o yaml | \
-  kubeseal --cert sealed-secrets-cert.pem --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
   > prod-sealed-url-shortener-secrets.yaml
 ```
 
@@ -177,7 +177,7 @@ resources:
 ### Step 5: 公開鍵を削除
 
 ```bash
-rm sealed-secrets-cert.pem
+rm /tmp/sealed-secrets-cert.pem
 ```
 
 ### Step 6: コミットしてプッシュ
@@ -191,7 +191,7 @@ git push
 ## 注意事項
 
 - **SealedSecrets はクラスタ固有**: クラスタを再構築した場合、Controller の秘密鍵が変わるため再生成が必要
-- **Namespace に紐づく**: デフォルトでは同じ namespace でのみ復号化可能
+- **cluster-wide スコープを使用**: kustomize の `namePrefix` がリソース名を変更するため、デフォルトの strict スコープでは復号化に失敗する。cluster-wide を使用することでこの問題を回避。namespace は Secret 側で指定されているため、別の namespace に復号化されるリスクはない
 - **パスワードは履歴に残さない**: シェル履歴に残らないよう `read -s` を使用するか、環境変数ファイルを使用
 
 ### パスワードを安全に入力する方法
