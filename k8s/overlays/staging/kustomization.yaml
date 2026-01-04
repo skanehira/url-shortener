@@ -11,10 +11,10 @@ namePrefix: staging-
 images:
 - name: ghcr.io/skanehira/url-shortener/analytics-service
   newName: ghcr.io/skanehira/url-shortener/analytics-service
-  newTag: 9c7454ac0aa4797210d4830b9721903b5ad5271d
+  newTag: 798c39a
 - name: ghcr.io/skanehira/url-shortener/shortener-service
   newName: ghcr.io/skanehira/url-shortener/shortener-service
-  newTag: 9c7454ac0aa4797210d4830b9721903b5ad5271d
+  newTag: 798c39a
 
 commonLabels:
   environment: staging
