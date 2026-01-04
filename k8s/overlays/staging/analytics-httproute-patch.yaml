@@ -1,0 +1,10 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: analytics-service
+spec:
+  parentRefs:
+    - name: shortener-gateway
+      namespace: url-shortener-staging
+  hostnames:
+    - "analytics.staging.k8s.local"

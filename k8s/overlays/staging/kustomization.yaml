@@ -36,3 +36,4 @@ patches:
 - path: redis-patch.yaml
 - path: rabbitmq-patch.yaml
 - path: httproute-patch.yaml
+- path: analytics-httproute-patch.yaml
