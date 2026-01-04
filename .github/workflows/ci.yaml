@@ -134,7 +134,7 @@ jobs:
 
   docker:
     name: Docker - ${{ matrix.service }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: [build-test, security]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -206,15 +206,19 @@ jobs:
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          SHORT_SHA=${IMAGE_TAG:0:7}
           cd k8s/overlays/staging
           kustomize edit set image \
-            ghcr.io/skanehira/url-shortener/shortener-service=ghcr.io/skanehira/url-shortener/shortener-service:${IMAGE_TAG} \
-            ghcr.io/skanehira/url-shortener/analytics-service=ghcr.io/skanehira/url-shortener/analytics-service:${IMAGE_TAG}
+            ghcr.io/skanehira/url-shortener/shortener-service=ghcr.io/skanehira/url-shortener/shortener-service:${SHORT_SHA} \
+            ghcr.io/skanehira/url-shortener/analytics-service=ghcr.io/skanehira/url-shortener/analytics-service:${SHORT_SHA}
 
       - name: Commit and push
+        env:
+          IMAGE_TAG: ${{ github.sha }}
         run: |
+          SHORT_SHA=${IMAGE_TAG:0:7}
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add k8s/overlays/staging/kustomization.yaml
-          git diff --staged --quiet || git commit -m "chore(k8s): update staging image tag to ${{ github.sha }}"
+          git diff --staged --quiet || git commit -m "chore(k8s): update staging image tag to ${SHORT_SHA}"
           git push
