@@ -65,7 +65,7 @@ nginx-gateway-5c765bc7b6-xxxxx   1/1     Running   0          30s
 
 この時点では Control Plane のみが起動しています。Data Plane (実際の NGINX) は Gateway リソースを作成すると動的に起動します。
 
-## Step 3: アプリケーションデプロイ & LoadBalancer IP 確認
+## Step 3: アプリケーションデプロイ & Gateway LoadBalancer IP 確認
 
 Gateway リソースはアプリケーションマニフェスト (`k8s/overlays/staging`) で管理されています。
 
@@ -76,20 +76,20 @@ kubectl apply -k k8s/overlays/staging
 # Data Plane Pod が起動するまで待機
 kubectl wait --namespace url-shortener-staging \
   --for=condition=ready pod \
-  --selector=app.kubernetes.io/name=staging-shortener-gateway-nginx \
+  --selector=app.kubernetes.io/name=shortener-gateway-nginx \
   --timeout=120s
 
-# LoadBalancer IP 確認
-kubectl get svc -n url-shortener-staging staging-shortener-gateway-nginx
+# Gateway の LoadBalancer IP 確認
+kubectl get svc -n url-shortener-staging shortener-gateway-nginx
 ```
 
 出力例:
 ```
-NAME                             TYPE           EXTERNAL-IP     PORT(S)
-staging-shortener-gateway-nginx  LoadBalancer   192.168.2.200   80:xxxxx/TCP
+NAME                      TYPE           EXTERNAL-IP     PORT(S)
+shortener-gateway-nginx   LoadBalancer   192.168.2.203   80:xxxxx/TCP
 ```
 
-この `EXTERNAL-IP` を控えておきます。
+この `EXTERNAL-IP` を控えておきます。全てのサービスはこの Gateway を経由してアクセスします。
 
 ## Step 4: CoreDNS ConfigMap 編集
 
@@ -104,14 +104,16 @@ k8s.local:53 {
     errors
     cache 30
     hosts {
-        192.168.2.200 url-shortener.staging.k8s.local
-        192.168.2.200 url-shortener.prod.k8s.local
+        192.168.2.203 url-shortener.staging.k8s.local
+        192.168.2.203 url-shortener.prod.k8s.local
+        192.168.2.203 analytics.staging.k8s.local
+        192.168.2.203 analytics.prod.k8s.local
         fallthrough
     }
 }
 ```
 
-※ `192.168.2.200` は Step 3 で確認した EXTERNAL-IP に置き換えてください
+※ `192.168.2.203` は Step 3 で確認した Gateway の EXTERNAL-IP に置き換えてください
 
 ### 編集後の Corefile 例
 
@@ -127,8 +129,10 @@ data:
         errors
         cache 30
         hosts {
-            192.168.2.200 url-shortener.staging.k8s.local
-            192.168.2.200 url-shortener.prod.k8s.local
+            192.168.2.203 url-shortener.staging.k8s.local
+            192.168.2.203 url-shortener.prod.k8s.local
+            192.168.2.203 analytics.staging.k8s.local
+            192.168.2.203 analytics.prod.k8s.local
             fallthrough
         }
     }
@@ -219,7 +223,7 @@ dig url-shortener.staging.k8s.local @$DNS_IP
 
 # 期待する出力:
 # ;; ANSWER SECTION:
-# url-shortener.staging.k8s.local.    30    IN    A    192.168.2.200
+# url-shortener.staging.k8s.local.    30    IN    A    192.168.2.203
 ```
 
 ### Mac からの名前解決確認
@@ -232,7 +236,7 @@ dscacheutil -q host -a name url-shortener.staging.k8s.local
 期待する出力:
 ```
 name: url-shortener.staging.k8s.local
-ip_address: 192.168.2.200
+ip_address: 192.168.2.203
 ```
 
 ### HTTP アクセス確認
@@ -352,9 +356,11 @@ kubectl edit configmap coredns -n kube-system
 
 ```
 hosts {
-    192.168.2.200 url-shortener.staging.k8s.local
-    192.168.2.200 url-shortener.prod.k8s.local
-    192.168.2.200 new-app.staging.k8s.local    # 追加
+    192.168.2.203 url-shortener.staging.k8s.local
+    192.168.2.203 url-shortener.prod.k8s.local
+    192.168.2.203 analytics.staging.k8s.local
+    192.168.2.203 analytics.prod.k8s.local
+    192.168.2.203 new-app.staging.k8s.local    # 追加
     fallthrough
 }
 ```
