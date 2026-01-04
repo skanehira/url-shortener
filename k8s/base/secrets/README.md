@@ -105,7 +105,7 @@ kubectl create secret generic url-shortener-secrets \
   --namespace ${NAMESPACE} \
   --from-literal=database-url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@url-shortener-db-rw:5432/urlshortener" \
   --from-literal=redis-url="redis://rfr-url-shortener-redis-0.rfr-url-shortener-redis:6379" \
-  --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@url-shortener-rabbitmq:5672/" \
+  --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@url-shortener-rabbitmq:5672/%2F" \
   --dry-run=client -o yaml | \
   kubeseal --cert /tmp/sealed-secrets-cert.pem --format yaml \
   > staging-sealed-url-shortener-secrets.yaml
@@ -145,7 +145,7 @@ kubectl create secret generic url-shortener-secrets \
   --namespace ${NAMESPACE} \
   --from-literal=database-url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@url-shortener-db-rw:5432/urlshortener" \
   --from-literal=redis-url="redis://rfr-url-shortener-redis-0.rfr-url-shortener-redis:6379" \
-  --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@url-shortener-rabbitmq:5672/" \
+  --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@url-shortener-rabbitmq:5672/%2F" \
   --dry-run=client -o yaml | \
   kubeseal --cert /tmp/sealed-secrets-cert.pem --format yaml \
   > prod-sealed-url-shortener-secrets.yaml
