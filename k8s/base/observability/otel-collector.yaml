@@ -32,6 +32,8 @@ data:
           - http://elasticsearch:9200
         logs_index: otel-logs
         traces_index: otel-traces
+        mapping:
+          mode: ecs
         sending_queue:
           enabled: true
           num_consumers: 10
