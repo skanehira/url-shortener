@@ -8,11 +8,3 @@ spec:
       namespace: url-shortener-staging
   hostnames:
     - "url-shortener.staging.k8s.local"
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: staging-shortener-service
-          port: 80

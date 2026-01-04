@@ -9,8 +9,6 @@ resources:
 - staging-sealed-rabbitmq-credentials.yaml
 - staging-sealed-url-shortener-secrets.yaml
 
-namePrefix: staging-
-
 images:
 - name: ghcr.io/skanehira/url-shortener/analytics-service
   newName: ghcr.io/skanehira/url-shortener/analytics-service

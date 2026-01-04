@@ -6,8 +6,6 @@ namespace: url-shortener-prod
 resources:
   - ../../base
 
-namePrefix: prod-
-
 commonLabels:
   environment: production
 

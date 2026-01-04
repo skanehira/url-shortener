@@ -86,7 +86,7 @@ kubectl create secret generic postgres-credentials \
   --from-literal=username=${POSTGRES_USER} \
   --from-literal=password=${POSTGRES_PASSWORD} \
   --dry-run=client -o yaml | \
-  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --format yaml \
   > staging-sealed-postgres-credentials.yaml
 
 # rabbitmq-credentials
@@ -95,19 +95,19 @@ kubectl create secret generic rabbitmq-credentials \
   --from-literal=username=${RABBITMQ_USER} \
   --from-literal=password=${RABBITMQ_PASSWORD} \
   --dry-run=client -o yaml | \
-  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --format yaml \
   > staging-sealed-rabbitmq-credentials.yaml
 
 # url-shortener-secrets
 # NOTE: redis-url は現在直接接続。Sentinel 対応後は以下に変更:
-#   redis+sentinel://rfs-staging-url-shortener-redis:26379/mymaster
+#   redis+sentinel://rfs-url-shortener-redis:26379/mymaster
 kubectl create secret generic url-shortener-secrets \
   --namespace ${NAMESPACE} \
-  --from-literal=database-url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@staging-url-shortener-db-rw:5432/urlshortener" \
-  --from-literal=redis-url="redis://rfr-staging-url-shortener-redis-0.rfr-staging-url-shortener-redis:6379" \
-  --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@staging-url-shortener-rabbitmq:5672/" \
+  --from-literal=database-url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@url-shortener-db-rw:5432/urlshortener" \
+  --from-literal=redis-url="redis://rfr-url-shortener-redis-0.rfr-url-shortener-redis:6379" \
+  --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@url-shortener-rabbitmq:5672/" \
   --dry-run=client -o yaml | \
-  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --format yaml \
   > staging-sealed-url-shortener-secrets.yaml
 ```
 
@@ -126,7 +126,7 @@ kubectl create secret generic postgres-credentials \
   --from-literal=username=${POSTGRES_USER} \
   --from-literal=password=${POSTGRES_PASSWORD} \
   --dry-run=client -o yaml | \
-  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --format yaml \
   > prod-sealed-postgres-credentials.yaml
 
 # rabbitmq-credentials
@@ -135,19 +135,19 @@ kubectl create secret generic rabbitmq-credentials \
   --from-literal=username=${RABBITMQ_USER} \
   --from-literal=password=${RABBITMQ_PASSWORD} \
   --dry-run=client -o yaml | \
-  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --format yaml \
   > prod-sealed-rabbitmq-credentials.yaml
 
 # url-shortener-secrets
 # NOTE: redis-url は現在直接接続。Sentinel 対応後は以下に変更:
-#   redis+sentinel://rfs-prod-url-shortener-redis:26379/mymaster
+#   redis+sentinel://rfs-url-shortener-redis:26379/mymaster
 kubectl create secret generic url-shortener-secrets \
   --namespace ${NAMESPACE} \
-  --from-literal=database-url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@prod-url-shortener-db-rw:5432/urlshortener" \
-  --from-literal=redis-url="redis://rfr-prod-url-shortener-redis-0.rfr-prod-url-shortener-redis:6379" \
-  --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@prod-url-shortener-rabbitmq:5672/" \
+  --from-literal=database-url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@url-shortener-db-rw:5432/urlshortener" \
+  --from-literal=redis-url="redis://rfr-url-shortener-redis-0.rfr-url-shortener-redis:6379" \
+  --from-literal=rabbitmq-url="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@url-shortener-rabbitmq:5672/" \
   --dry-run=client -o yaml | \
-  kubeseal --cert /tmp/sealed-secrets-cert.pem --scope cluster-wide --format yaml \
+  kubeseal --cert /tmp/sealed-secrets-cert.pem --format yaml \
   > prod-sealed-url-shortener-secrets.yaml
 ```
 
@@ -191,7 +191,7 @@ git push
 ## 注意事項
 
 - **SealedSecrets はクラスタ固有**: クラスタを再構築した場合、Controller の秘密鍵が変わるため再生成が必要
-- **cluster-wide スコープを使用**: kustomize の `namePrefix` がリソース名を変更するため、デフォルトの strict スコープでは復号化に失敗する。cluster-wide を使用することでこの問題を回避。namespace は Secret 側で指定されているため、別の namespace に復号化されるリスクはない
+- **Namespace に紐づく**: デフォルトの strict スコープでは同じ namespace でのみ復号化可能
 - **パスワードは履歴に残さない**: シェル履歴に残らないよう `read -s` を使用するか、環境変数ファイルを使用
 
 ### パスワードを安全に入力する方法

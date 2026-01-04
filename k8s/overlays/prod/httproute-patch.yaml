@@ -8,11 +8,3 @@ spec:
       namespace: url-shortener-prod
   hostnames:
     - "url-shortener.prod.k8s.local"
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: prod-shortener-service
-          port: 80
